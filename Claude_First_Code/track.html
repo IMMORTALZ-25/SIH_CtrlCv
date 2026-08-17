@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track a Complaint — Campus Desk</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="mark"></span>Campus Desk</div>
+  <nav>
+    <a href="index.html">Submit</a>
+    <a href="track.html" class="active">Track</a>
+    <a href="admin.html">Admin</a>
+  </nav>
+</div>
+
+<div class="page">
+  <div class="page-head">
+    <h1>Track your complaint</h1>
+    <p>Search by the complaint ID you were given, or by the name you submitted under.</p>
+  </div>
+
+  <div class="panel">
+    <div class="row2">
+      <div class="field">
+        <label for="searchId">Complaint ID</label>
+        <input type="text" id="searchId" placeholder="Paste your complaint ID">
+      </div>
+      <div class="field">
+        <label for="searchName">Or your name</label>
+        <input type="text" id="searchName" placeholder="Name used at submission">
+      </div>
+    </div>
+    <button class="btn-primary" id="searchBtn">Search</button>
+  </div>
+
+  <div id="results" style="margin-top:24px;"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const searchBtn = document.getElementById('searchBtn');
+  const results = document.getElementById('results');
+
+  const STEPS = ['Pending', 'In Progress', 'Resolved'];
+
+  function stepper(status) {
+    const idx = STEPS.indexOf(status);
+    return `<div class="stepper">${STEPS.map((s, i) => `
+      <div class="step ${i < idx ? 'done' : ''} ${i === idx ? 'current' : ''}">
+        <div class="line"></div>
+        <div class="node">${i < idx ? '✓' : i + 1}</div>
+        <div class="label">${s}</div>
+      </div>`).join('')}</div>`;
+  }
+
+  function pillClass(status) {
+    if (status === 'Pending') return 'status-pending';
+    if (status === 'In Progress') return 'status-progress';
+    return 'status-resolved';
+  }
+
+  function card(c) {
+    const date = new Date(c.created_at).toLocaleString();
+    return `
+      <div class="panel result-card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+          <h2 style="font-size:19px; color: var(--navy);">${c.title}</h2>
+          <span class="status-pill ${pillClass(c.status)}"><span class="dot"></span>${c.status}</span>
+        </div>
+        ${stepper(c.status)}
+        <div class="meta-row">
+          <div class="meta-item"><div class="k">Category</div><div class="v">${c.category}</div></div>
+          <div class="meta-item"><div class="k">Location</div><div class="v">${c.location || '—'}</div></div>
+          <div class="meta-item"><div class="k">Submitted</div><div class="v">${date}</div></div>
+        </div>
+        ${c.description ? `<div class="notes-box"><strong>Description:</strong> ${c.description}</div>` : ''}
+        ${c.admin_notes ? `<div class="notes-box"><strong>Update from admin:</strong> ${c.admin_notes}</div>` : ''}
+      </div>`;
+  }
+
+  async function runSearch() {
+    const id = document.getElementById('searchId').value.trim();
+    const name = document.getElementById('searchName').value.trim();
+    results.innerHTML = `<div class="empty">Searching…</div>`;
+
+    let query = supabaseClient.from('complaints').select('*').order('created_at', { ascending: false });
+    if (id) query = query.eq('id', id);
+    else if (name) query = query.ilike('student_name', `%${name}%`);
+    else { results.innerHTML = `<div class="empty">Enter a complaint ID or your name to search.</div>`; return; }
+
+    const { data, error } = await query;
+
+    if (error) { results.innerHTML = `<div class="msg msg-error">${error.message}</div>`; return; }
+    if (!data || data.length === 0) { results.innerHTML = `<div class="empty">No complaints found. Check the ID or name and try again.</div>`; return; }
+
+    results.innerHTML = data.map(card).join('');
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  [document.getElementById('searchId'), document.getElementById('searchName')].forEach(el =>
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); })
+  );
+</script>
+
+</body>
+</html>

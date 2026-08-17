@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Campus Desk</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="mark"></span>Campus Desk</div>
+  <nav>
+    <a href="index.html">Submit</a>
+    <a href="track.html">Track</a>
+    <a href="admin.html" class="active">Admin</a>
+  </nav>
+</div>
+
+<div class="page wide">
+  <div class="page-head">
+    <h1>Admin dashboard</h1>
+    <p>All complaints across campus. Rows flagged red have been open 3+ days with no update.</p>
+  </div>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="chart-wrap">
+    <canvas id="statusChart" height="80"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <select id="filterCategory"><option value="">All categories</option></select>
+      <select id="filterStatus">
+        <option value="">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+      <button class="btn-ghost" id="refreshBtn">Refresh</button>
+    </div>
+    <div id="tableWrap"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const filterCategory = document.getElementById('filterCategory');
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    filterCategory.appendChild(opt);
+  });
+
+  const OVERDUE_DAYS = 3;
+  let chart = null;
+  let allComplaints = [];
+
+  function daysAgo(dateStr) {
+    return (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
+  }
+
+  function pillClass(status) {
+    if (status === 'Pending') return 'status-pending';
+    if (status === 'In Progress') return 'status-progress';
+    return 'status-resolved';
+  }
+
+  function renderStats(data) {
+    const pending = data.filter(c => c.status === 'Pending').length;
+    const progress = data.filter(c => c.status === 'In Progress').length;
+    const resolved = data.filter(c => c.status === 'Resolved').length;
+    const overdue = data.filter(c => c.status !== 'Resolved' && daysAgo(c.created_at) > OVERDUE_DAYS).length;
+
+    document.getElementById('statRow').innerHTML = `
+      <div class="stat"><div class="num">${data.length}</div><div class="lbl">Total</div></div>
+      <div class="stat"><div class="num">${pending}</div><div class="lbl">Pending</div></div>
+      <div class="stat"><div class="num">${progress}</div><div class="lbl">In Progress</div></div>
+      <div class="stat"><div class="num" style="color:var(--red)">${overdue}</div><div class="lbl">Overdue (${OVERDUE_DAYS}+ days)</div></div>
+    `;
+  }
+
+  function renderChart(data) {
+    const counts = {};
+    CATEGORIES.forEach(c => counts[c] = 0);
+    data.forEach(c => { if (counts[c.category] !== undefined) counts[c.category]++; });
+
+    const ctx = document.getElementById('statusChart');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(counts),
+        datasets: [{
+          label: 'Complaints by category',
+          data: Object.values(counts),
+          backgroundColor: '#3B5A7A',
+          borderRadius: 4,
+          maxBarThickness: 46,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#E9EDF2' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderTable(data) {
+    const wrap = document.getElementById('tableWrap');
+    if (data.length === 0) { wrap.innerHTML = `<div class="empty">No complaints match this filter.</div>`; return; }
+
+    wrap.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Complaint</th><th>Category</th><th>Location</th><th>Status</th><th>Submitted</th><th>Update</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(c => {
+            const overdue = c.status !== 'Resolved' && daysAgo(c.created_at) > OVERDUE_DAYS;
+            const date = new Date(c.created_at).toLocaleDateString();
+            return `
+              <tr class="${overdue ? 'overdue' : ''}" data-id="${c.id}">
+                <td>
+                  <div style="font-weight:600;">${c.title}</div>
+                  <div class="desc-cell">${c.description || ''}</div>
+                  ${c.student_name ? `<div class="desc-cell">by ${c.student_name}</div>` : ''}
+                  ${overdue ? `<div class="overdue-flag">⚠ Open ${Math.floor(daysAgo(c.created_at))} days</div>` : ''}
+                </td>
+                <td>${c.category}</td>
+                <td>${c.location || '—'}</td>
+                <td><span class="status-pill ${pillClass(c.status)}"><span class="dot"></span>${c.status}</span></td>
+                <td>${date}</td>
+                <td>
+                  <select class="statusSelect">
+                    <option value="Pending" ${c.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                    <option value="In Progress" ${c.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                    <option value="Resolved" ${c.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                  </select>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+
+    wrap.querySelectorAll('.statusSelect').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const row = e.target.closest('tr');
+        const id = row.dataset.id;
+        const newStatus = e.target.value;
+        e.target.disabled = true;
+        const { error } = await supabaseClient.from('complaints').update({ status: newStatus }).eq('id', id);
+        e.target.disabled = false;
+        if (error) { alert('Update failed: ' + error.message); return; }
+        loadData();
+      });
+    });
+  }
+
+  function applyFilters() {
+    const cat = filterCategory.value;
+    const status = document.getElementById('filterStatus').value;
+    let filtered = allComplaints;
+    if (cat) filtered = filtered.filter(c => c.category === cat);
+    if (status) filtered = filtered.filter(c => c.status === status);
+    renderTable(filtered);
+  }
+
+  async function loadData() {
+    document.getElementById('tableWrap').innerHTML = `<div class="empty">Loading…</div>`;
+    const { data, error } = await supabaseClient.from('complaints').select('*').order('created_at', { ascending: false });
+    if (error) { document.getElementById('tableWrap').innerHTML = `<div class="msg msg-error">${error.message}</div>`; return; }
+    allComplaints = data;
+    renderStats(data);
+    renderChart(data);
+    applyFilters();
+  }
+
+  filterCategory.addEventListener('change', applyFilters);
+  document.getElementById('filterStatus').addEventListener('change', applyFilters);
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+  loadData();
+</script>
+
+</body>
+</html>
