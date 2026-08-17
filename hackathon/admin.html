@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Complaint Manager</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <h1>Smart Complaint Manager</h1>
+
+    <p id="dashboard-title">Admin Dashboard</p>
+
+    <!-- Statistics -->
+
+    <div class="stats">
+        <div class="stat-card">
+            <h3>Total Complaints</h3>
+            <p id="total-count">20</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Pending</h3>
+            <p id="pending-count">5</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>In Progress</h3>
+            <p id="progress-count">7</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Resolved</h3>
+            <p id="resolved-count">8</p>
+        </div>
+    </div>
+
+
+    <!-- Filters -->
+
+    <div class="filters">
+
+        <label for="category">Category:</label>
+
+        <select id="category">
+            <option value="all">All</option>
+            <option value="Hostel">Hostel</option>
+            <option value="Mess">Mess</option>
+            <option value="WiFi">WiFi</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Academic">Academic</option>
+        </select>
+
+
+        <label for="status">Status:</label>
+
+        <select id="status">
+            <option value="all">All</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+        </select>
+
+    </div>
+
+
+    <!-- Complaints -->
+
+    <h2>Complaints</h2>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Complaint</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            <tr>
+                <td>001</td>
+                <td>WiFi not working</td>
+                <td>WiFi</td>
+                <td>Hostel A</td>
+                <td>Pending</td>
+            </tr>
+
+            <tr>
+                <td>002</td>
+                <td>Broken fan</td>
+                <td>Maintenance</td>
+                <td>Hostel B</td>
+                <td>In Progress</td>
+            </tr>
+
+            <tr>
+                <td>003</td>
+                <td>Bad food quality</td>
+                <td>Mess</td>
+                <td>Main Mess</td>
+                <td>Resolved</td>
+            </tr>
+
+        </tbody>
+
+    </table>
+    <script src="script.js"></script>
+</body>
+
+</html>
