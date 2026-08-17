@@ -45,5 +45,3 @@ console.log(pendingComplaints);
 const titles = complaints.map(
     complaint => complaint.title
 );
-
-let gay = 99;
